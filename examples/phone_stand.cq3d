@@ -1,0 +1,55 @@
+model phone_stand
+unit mm
+
+width = 90
+depth = 75
+base_height = 8
+back_height = 85
+wall = 5
+slot_width = 14
+slot_depth = 10
+
+box base
+  size width depth base_height
+  at 0 0 0
+end
+
+box back
+  size width wall back_height
+  at 0 depth - wall base_height
+end
+
+box front_lip
+  size width wall 8
+  at 0 0 base_height
+end
+
+box phone_slot
+  size width - 20 slot_depth base_height + 2
+  at 10 8 0
+end
+
+#hole cable
+#  diameter 16
+#  depth through
+#  axis y
+#  at width / 2 depth - wall / 2 25
+#end
+
+cylinder peg
+  diameter 8
+  height 20
+  at width / 2 depth - wall / 2 25
+end
+
+combine body
+  union base back front_lip
+  #cut phone_slot cable
+end
+
+fillet body
+  radius 3
+  edges all
+end
+
+export stl "exports/phone_stand.stl"

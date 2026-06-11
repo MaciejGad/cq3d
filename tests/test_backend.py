@@ -226,6 +226,34 @@ end
     assert get_bounding_box(result.final_object) == pytest.approx(expected, abs=1e-6)
 
 
+def test_cylinder_defaults_to_vertical_z_axis():
+    source = """
+model demo
+unit mm
+
+cylinder body
+  radius 5
+  height 20
+  at 10 15 0
+end
+"""
+    result = build_document(parse_document(source))
+    assert get_bounding_box(result.final_object) == pytest.approx(
+        {
+            "xmin": 5.0,
+            "xmax": 15.0,
+            "xlen": 10.0,
+            "ymin": 10.0,
+            "ymax": 20.0,
+            "ylen": 10.0,
+            "zmin": 0.0,
+            "zmax": 20.0,
+            "zlen": 20.0,
+        },
+        abs=1e-6,
+    )
+
+
 def test_move_applies_relative_translation_after_creation():
     source = """
 model demo

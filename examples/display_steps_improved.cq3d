@@ -1,0 +1,53 @@
+model display_steps_improved
+unit mm
+
+front_width = 165
+side_depth = 160
+step_height = 75
+step_depth = side_depth / 2
+wall = 4
+lip_height = 5
+lip_thickness = 4
+rib_thickness = 4
+
+box lower
+  size front_width side_depth step_height
+  at 0 0 0
+end
+
+box upper
+  size front_width step_depth step_height
+  at 0 step_depth step_height
+end
+
+box lip_front
+  size front_width lip_thickness lip_height
+  at 0 0 step_height
+end
+
+box lip_upper
+  size front_width lip_thickness lip_height
+  at 0 step_depth step_height * 2
+end
+
+box rib_left
+  size rib_thickness side_depth step_height * 2
+  at front_width / 3 0 0
+end
+
+box rib_right
+  size rib_thickness side_depth step_height * 2
+  at front_width * 2 / 3 0 0
+end
+
+combine body
+  union lower upper lip_front lip_upper rib_left rib_right
+end
+
+fillet body
+  radius 1.5
+  edges all
+end
+
+export stl "exports/display_steps_improved.stl"
+export step "exports/display_steps_improved.step"
