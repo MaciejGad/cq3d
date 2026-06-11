@@ -8,6 +8,27 @@ It describes only the currently implemented DSL behavior.
 Use `.cq3d` files to describe 3D printable geometry in a simple line-based text format.
 All dimensions are in millimeters.
 
+## Global Coordinate System
+
+The implemented DSL uses a right-handed coordinate system:
+
+- `X` = left to right / width
+- `Y` = front to back / depth
+- `Z` = bottom to top / height
+
+The global origin is:
+
+```text
+0 0 0 = lower-front-left corner of project space
+```
+
+Practical meaning:
+
+- `Z = 0` is the bottom plane / print bed level
+- positive `X` moves right
+- positive `Y` moves toward the back
+- positive `Z` moves upward
+
 ## File Rules
 
 - Use plain text files with the `.cq3d` extension.
@@ -167,7 +188,7 @@ Rules:
 Implemented placement behavior:
 
 - when `center false` is used or omitted, the box is treated as lower-corner placed
-- `at 0 0 0` means the lower-front-left corner is at the origin
+- `at x y z` places the lower-front-left-bottom corner at that coordinate
 - with `center true`, CadQuery centered placement is used
 
 Example:
@@ -213,8 +234,9 @@ Rules:
 
 Implemented placement behavior:
 
-- default cylinder is extruded along `z`
-- `at` translates the resulting solid
+- default vertical cylinder is extruded along `+z`
+- `at x y z` places the center of the bottom face at that coordinate
+- for `axis x` and `axis y`, the cylinder extends in the positive axis direction from the anchor point
 
 Example:
 
@@ -273,6 +295,7 @@ Rules:
 
 - the object must already exist
 - exactly one `by` line is allowed
+- this is a relative translation applied after object creation
 
 Example:
 
@@ -463,4 +486,5 @@ These are not implemented in the current DSL and should not be emitted:
 - Keep object ids descriptive: `base`, `upper_step`, `body`, `peg`, `hole`.
 - Use `body` as the final combined object name.
 - Emit one command per line and keep blocks clean for Git diffs.
+- Assume world coordinates are preserved through `combine`, `move`, exports, and previews.
 - When in doubt, stay within the currently implemented commands only.

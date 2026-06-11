@@ -36,6 +36,21 @@ class BuildResult:
     final_object: cq.Workplane | None
 
 
+def get_bounding_box(obj: cq.Workplane) -> dict[str, float]:
+    bbox = obj.val().BoundingBox()
+    return {
+        "xmin": bbox.xmin,
+        "xmax": bbox.xmax,
+        "xlen": bbox.xlen,
+        "ymin": bbox.ymin,
+        "ymax": bbox.ymax,
+        "ylen": bbox.ylen,
+        "zmin": bbox.zmin,
+        "zmax": bbox.zmax,
+        "zlen": bbox.zlen,
+    }
+
+
 def build_document(document: ModelDocument) -> BuildResult:
     validation = validate_document(document)
     context = BuildContext(document=document, variables=dict(validation.variables))
