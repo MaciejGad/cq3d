@@ -334,6 +334,7 @@
     const metaObject = document.getElementById("meta-object");
     const metaSize = document.getElementById("meta-size");
     const viewerEl = document.getElementById("viewer");
+    const VIEW_STATE_KEY = "cq3d.viewerState.v1";
 
     let compileTimer = null;
     let lastPreviewUrl = null;
@@ -364,6 +365,7 @@
     });
     const loader = new STLLoader();
     let mesh = null;
+    let hasRestoredViewState = false;
 
     function setStatus(kind, text) {
       statusEl.className = kind ? kind : "";
@@ -387,6 +389,53 @@
       mesh = null;
     }
 
+    function saveViewState() {
+      try {
+        const payload = {
+          cameraPosition: camera.position.toArray(),
+          cameraZoom: camera.zoom,
+          controlsTarget: controls.target.toArray(),
+        };
+        localStorage.setItem(VIEW_STATE_KEY, JSON.stringify(payload));
+      } catch (error) {
+        console.warn("Failed to save viewer state", error);
+      }
+    }
+
+    function restoreViewState() {
+      try {
+        const raw = localStorage.getItem(VIEW_STATE_KEY);
+        if (!raw) return false;
+        const payload = JSON.parse(raw);
+        if (!Array.isArray(payload.cameraPosition) || !Array.isArray(payload.controlsTarget)) {
+          return false;
+        }
+        camera.position.fromArray(payload.cameraPosition);
+        if (typeof payload.cameraZoom === "number") {
+          camera.zoom = payload.cameraZoom;
+        }
+        controls.target.fromArray(payload.controlsTarget);
+        camera.updateProjectionMatrix();
+        controls.update();
+        return true;
+      } catch (error) {
+        console.warn("Failed to restore viewer state", error);
+        return false;
+      }
+    }
+
+    function frameMesh(size) {
+      const radius = Math.max(size.x, size.y, size.z) || 1;
+      camera.position.set(radius * 1.8, radius * 1.4, radius * 1.9);
+      camera.zoom = 1;
+      camera.near = Math.max(radius / 100, 0.1);
+      camera.far = Math.max(radius * 20, 1000);
+      camera.updateProjectionMatrix();
+      controls.target.set(0, 0, 0);
+      controls.update();
+      saveViewState();
+    }
+
     function renderStlBuffer(buffer) {
       clearMesh();
       const geometry = loader.parse(buffer);
@@ -400,12 +449,16 @@
       mesh.position.sub(center);
 
       const radius = Math.max(size.x, size.y, size.z) || 1;
-      camera.position.set(radius * 1.8, radius * 1.4, radius * 1.9);
       camera.near = Math.max(radius / 100, 0.1);
       camera.far = Math.max(radius * 20, 1000);
       camera.updateProjectionMatrix();
-      controls.target.set(0, 0, 0);
-      controls.update();
+
+      if (!hasRestoredViewState) {
+        frameMesh(size);
+        hasRestoredViewState = true;
+      } else {
+        controls.update();
+      }
       placeholder.style.display = "none";
     }
 
@@ -486,6 +539,7 @@
     document.getElementById("btn-step").addEventListener("click", () => exportModel("step"));
 
     editor.on("change", scheduleCompile);
+    controls.addEventListener("change", saveViewState);
 
     window.addEventListener("resize", () => {
       renderer.setSize(viewerEl.clientWidth, viewerEl.clientHeight);
@@ -515,6 +569,7 @@
     });
 
     async function initialize() {
+      hasRestoredViewState = restoreViewState();
       const [keywordResponse, sourceResponse] = await Promise.all([
         fetch("/api/keywords"),
         fetch("/api/default-source"),
