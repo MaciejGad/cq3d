@@ -209,12 +209,21 @@
         </div>
       </div>
     </div>
-  </div>
+</div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+      }
+    }
+  </script>
 
   <script type="module">
-    import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
-    import { STLLoader } from "https://unpkg.com/three@0.164.1/examples/jsm/loaders/STLLoader.js";
-    import { OrbitControls } from "https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js";
+    import * as THREE from "three";
+    import { STLLoader } from "three/addons/loaders/STLLoader.js";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
     const keywordConfig = {
       keywords: [],

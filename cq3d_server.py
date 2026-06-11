@@ -276,7 +276,7 @@ def main(argv: list[str] | None = None) -> None:
         description="Web editor for .cq3d files with STL preview.",
     )
     parser.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=5001, help="Port to listen on (default: 5001)")
+    parser.add_argument("--port", type=int, default=4001, help="Port to listen on (default: 4001)")
     parser.add_argument("--debug", action="store_true", help="Enable Flask debug mode")
     args = parser.parse_args(argv)
 
