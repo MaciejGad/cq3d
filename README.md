@@ -118,6 +118,12 @@ Run the full suite:
 .venv/bin/python -m pytest
 ```
 
+Or use the helper script that runs tests and regenerates coverage artifacts:
+
+```bash
+bash test.sh
+```
+
 Generate an HTML coverage report:
 
 ```bash
