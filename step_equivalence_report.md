@@ -37,29 +37,28 @@ This is intentionally a geometry-level comparison using STEP as the interchange 
 
 ### Geometry
 
-Current observed results:
+Current observed results after fixing box placement in the backend:
 
 | Case | Status | Main difference |
 | --- | --- | --- |
-| `box` | mismatch | same size and volume, but exported placement is offset |
+| `box` | match | no geometric difference observed |
 | `cylinder` | match | no geometric difference observed |
-| `union_boxes` | mismatch | union output collapses to the lower box because box placement is wrong |
+| `union_boxes` | match | no geometric difference observed |
 
 Detailed observations:
 
 ### `box`
 
-- `cq3d` bbox min: `(5, 10, 15)`
+- `cq3d` bbox min: `(0, 0, 0)`
 - Python bbox min: `(0, 0, 0)`
-- `cq3d` bbox max: `(15, 30, 45)`
+- `cq3d` bbox max: `(10, 20, 30)`
 - Python bbox max: `(10, 20, 30)`
 - both volumes: `6000`
-- symmetric-difference volume: `5250` in both directions
+- symmetric-difference volume: `0` in both directions
 
 Interpretation:
 
-- the box has the correct dimensions
-- the box is exported in the wrong location
+- the box now matches the reference model in both dimensions and placement
 
 ### `cylinder`
 
@@ -74,17 +73,16 @@ Interpretation:
 
 ### `union_boxes`
 
-- `cq3d` volume: `6000`
+- `cq3d` volume: `8000`
 - Python volume: `8000`
-- `cq3d` bbox: `(10, 20, 30)`
+- `cq3d` bbox: `(10, 20, 40)`
 - Python bbox: `(10, 20, 40)`
-- symmetric-difference volumes: `4750` and `6750`
+- symmetric-difference volumes: `0` and `0`
 
 Interpretation:
 
-- the union result is wrong
-- the most likely cause is the same box placement issue seen in the single-box case
-- because the second box is shifted unexpectedly, it ends up inside the first box instead of stacking on top
+- the union now matches the reference model
+- fixing box placement also fixed the stacked-box union case
 
 ### Raw STEP File Content
 
@@ -109,9 +107,9 @@ The current comparison set is intentionally small and does not yet cover:
 - multi-step models such as `display_steps`
 - deterministic export requirements
 
-## Proposal To Fix The Remaining Issues
+## Proposal For Remaining Improvements
 
-This section is a proposal only. No implementation has been done yet.
+The geometry mismatch reported in the first version is now fixed. The items below are still proposals only.
 
 ### 1. Keep geometry comparison as the main correctness check
 
@@ -120,24 +118,7 @@ Reason:
 - It verifies the actual shape rather than unstable STEP serialization details.
 - It remains useful even if export metadata changes.
 
-### 2. Fix box placement semantics in the backend
-
-Most likely source:
-
-- [`cq3d/cadquery_backend.py`](/Users/bazyl/Code/Essa3d/cq3d/cadquery_backend.py) applies a post-translation after already building a non-centered CadQuery box
-
-Probable fix direction:
-
-- verify CadQuery's `box(..., centered=(False, False, False))` placement behavior
-- remove the extra translation if CadQuery is already creating the box from the lower-front-left corner
-- re-run the STEP parity cases after that change
-
-Expected benefit:
-
-- should fix the single-box placement mismatch
-- should also fix unions that depend on box stacking and adjacency
-
-### 3. Add a canonical STEP comparison mode
+### 2. Add a canonical STEP comparison mode
 
 Potential approach:
 
@@ -150,7 +131,7 @@ Expected benefit:
 - produces cleaner Git-friendly diffs for regression reports
 - makes it easier to inspect exporter drift
 
-### 4. Add richer geometric diagnostics when a comparison fails
+### 3. Add richer geometric diagnostics when a comparison fails
 
 Potential additions:
 
@@ -163,7 +144,7 @@ Expected benefit:
 
 - faster debugging when a DSL command diverges from the reference CadQuery implementation
 
-### 5. Expand the equivalence matrix incrementally
+### 4. Expand the equivalence matrix incrementally
 
 Recommended next cases:
 
@@ -176,7 +157,7 @@ Recommended next cases:
 7. `fillet safe true`
 8. `display_steps` as a full example parity case
 
-### 6. Consider a reusable reference-model fixture layer
+### 5. Consider a reusable reference-model fixture layer
 
 Potential approach:
 

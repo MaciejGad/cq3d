@@ -14,6 +14,11 @@ def _bbox(workplane: cq.Workplane):
     return bbox.xlen, bbox.ylen, bbox.zlen
 
 
+def _bbox_min_max(workplane: cq.Workplane):
+    bbox = workplane.val().BoundingBox()
+    return (bbox.xmin, bbox.ymin, bbox.zmin), (bbox.xmax, bbox.ymax, bbox.zmax)
+
+
 def test_builds_display_steps_example_with_expected_bounds():
     source = Path("examples/display_steps.cq3d").read_text()
     document = parse_document(source, source_path="examples/display_steps.cq3d")
@@ -74,6 +79,22 @@ end
 """
     result = build_document(parse_document(source))
     assert _bbox(result.final_object) == pytest.approx((10.0, 10.0, 10.0))
+
+
+def test_box_at_uses_lower_corner_coordinates():
+    source = """
+model demo
+unit mm
+
+box body
+  size 10 20 30
+  at 0 0 0
+end
+"""
+    result = build_document(parse_document(source))
+    bbox_min, bbox_max = _bbox_min_max(result.final_object)
+    assert bbox_min == pytest.approx((0.0, 0.0, 0.0))
+    assert bbox_max == pytest.approx((10.0, 20.0, 30.0))
 
 
 def test_exports_stl_and_step(tmp_path):

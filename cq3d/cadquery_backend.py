@@ -85,8 +85,6 @@ def _build_box(command: BoxCommand, variables: dict[str, float]) -> cq.Workplane
     size = [_eval(expr.text, variables, command.line) for expr in command.size]
     obj = cq.Workplane("XY").box(*size, centered=(command.center, command.center, command.center))
 
-    if not command.center:
-        obj = obj.translate((size[0] / 2, size[1] / 2, size[2] / 2))
     if command.at is not None:
         at = [_eval(expr.text, variables, expr.line) for expr in command.at]
         obj = obj.translate(tuple(at))

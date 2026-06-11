@@ -83,7 +83,7 @@ def _export_python(model: cq.Workplane, path: Path) -> Path:
 @pytest.mark.parametrize(
     ("name", "source", "builder"),
     [
-        pytest.param(
+        (
             "box",
             """
 model box_case
@@ -97,12 +97,8 @@ end
 export step "box_case.step"
 """,
             lambda: _lower_corner_box((10, 20, 30)),
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="Known placement mismatch: cq3d box output is offset from the origin compared to the reference model.",
-            ),
         ),
-        pytest.param(
+        (
             "cylinder",
             """
 model cylinder_case
@@ -118,7 +114,7 @@ export step "cylinder_case.step"
 """,
             lambda: _cylinder(5, 12),
         ),
-        pytest.param(
+        (
             "union_boxes",
             """
 model union_boxes_case
@@ -141,10 +137,6 @@ end
 export step "union_boxes_case.step"
 """,
             lambda: _lower_corner_box((10, 20, 30)).union(_lower_corner_box((10, 20, 10), (0, 0, 30))),
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="Known box placement bug collapses the union case by shifting the second box into the first one.",
-            ),
         ),
     ],
 )
