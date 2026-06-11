@@ -1,0 +1,28 @@
+model display_steps
+unit mm
+
+front_width = 165
+side_depth = 160
+step_height = 75
+step_depth = side_depth / 2
+
+box lower_step
+  size front_width side_depth step_height
+  at 0 0 0
+end
+
+box upper_step
+  size front_width step_depth step_height
+  at 0 step_depth step_height
+end
+
+combine body
+  union lower_step upper_step
+end
+
+fillet body
+  radius 2
+end
+
+export stl "exports/display_steps.stl"
+export step "exports/display_steps.step"

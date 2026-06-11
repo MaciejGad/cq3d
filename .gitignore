@@ -1,0 +1,75 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+.venv/
+.venv-*/
+venv/
+env/
+ENV/
+
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# CadQuery / 3D generated outputs
+exports/
+generated/
+*.stl
+*.step
+*.stp
+*.3mf
+*.obj
+*.brep
+*.iges
+*.igs
+*.dxf
+
+# Generated Python from DSL, if used
+*_generated.py
+*.generated.py
+
+# Logs
+*.log
+logs/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter, optional
+.ipynb_checkpoints/
+
+# Temporary files
+tmp/
+temp/
+.cache/
