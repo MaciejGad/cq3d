@@ -59,6 +59,24 @@ Build a file into a different output directory:
 
 Relative export paths are resolved from the source `.cq3d` file directory unless `--out-dir` is provided. Absolute export paths are preserved.
 
+## Web Editor
+
+Run the CQ3D editor server:
+
+```bash
+.venv/bin/python cq3d_server.py
+```
+
+Then open:
+
+- [http://127.0.0.1:5001](http://127.0.0.1:5001)
+
+The web editor provides:
+
+- a CodeMirror-based `.cq3d` editor with autocomplete and syntax highlighting
+- Three.js STL preview rendered from backend-generated STL
+- download buttons for `.cq3d`, `.stl`, and `.step`
+
 ## Example
 
 [`examples/display_steps.cq3d`](/Users/bazyl/Code/Essa3d/examples/display_steps.cq3d) builds a two-step display model with an expected bounding box of about:

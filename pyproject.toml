@@ -5,6 +5,7 @@ description = "Text-based DSL for generating 3D printable models with CadQuery"
 requires-python = ">=3.11"
 dependencies = [
     "cadquery",
+    "flask",
 ]
 
 [project.optional-dependencies]

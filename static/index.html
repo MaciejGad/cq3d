@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CQ3D Editor</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/theme/dracula.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/hint/show-hint.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/hint/show-hint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/comment/comment.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(circle at top left, rgba(230, 166, 70, 0.14), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(93, 184, 198, 0.12), transparent 30%),
+        #11161d;
+      color: #edf1f3;
+      overflow: hidden;
+    }
+    #toolbar {
+      height: 54px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 18px;
+      background: rgba(9, 12, 16, 0.92);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+      flex-shrink: 0;
+    }
+    .brand {
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 13px;
+      color: #f7f3e9;
+    }
+    .brand span { color: #7dd3df; }
+    #status {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #d5dde2;
+    }
+    #status.ok { background: rgba(56, 161, 105, 0.22); color: #b6f0ca; }
+    #status.err { background: rgba(229, 62, 62, 0.22); color: #ffc5c5; }
+    #status.busy { background: rgba(214, 158, 46, 0.24); color: #f8e6ae; }
+    .spacer { flex: 1; }
+    .btn {
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 999px;
+      padding: 7px 14px;
+      background: rgba(255,255,255,0.06);
+      color: #edf1f3;
+      font-size: 12px;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.26);
+    }
+    #split {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    #editor-panel, #preview-panel {
+      display: flex;
+      flex-direction: column;
+      min-width: 240px;
+      overflow: hidden;
+    }
+    #editor-panel {
+      flex: 0 0 52%;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      background: rgba(14, 18, 24, 0.9);
+    }
+    #preview-panel {
+      flex: 1;
+      background: linear-gradient(180deg, #151c24 0%, #0f141b 100%);
+    }
+    .panel-header {
+      padding: 8px 14px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: #93a4af;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      flex-shrink: 0;
+    }
+    .CodeMirror {
+      height: 100% !important;
+      font-family: "JetBrains Mono", "Fira Code", monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      background: transparent;
+    }
+    .cm-keyword { color: #f6c177 !important; font-weight: 700; }
+    .cm-property { color: #7dd3df !important; }
+    .cm-atom { color: #a3e635 !important; }
+    .cm-number { color: #fca5a5 !important; }
+    .cm-comment { color: #708090 !important; font-style: italic; }
+    .cm-variable { color: #e9d5ff !important; }
+    .cm-builtin { color: #93c5fd !important; }
+    .cm-operator { color: #f5f5f4 !important; }
+    #error-bar {
+      display: none;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-family: monospace;
+      color: #ffcacd;
+      background: rgba(130, 29, 43, 0.36);
+      border-top: 1px solid rgba(255, 120, 120, 0.25);
+      white-space: pre-wrap;
+      max-height: 110px;
+      overflow: auto;
+    }
+    #error-bar.visible { display: block; }
+    #resizer {
+      width: 6px;
+      cursor: col-resize;
+      background: rgba(255,255,255,0.06);
+      flex-shrink: 0;
+    }
+    #resizer:hover, #resizer.active { background: rgba(125, 211, 223, 0.45); }
+    #preview-toolbar {
+      display: flex;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-size: 12px;
+      color: #b7c4cb;
+      flex-wrap: wrap;
+    }
+    #viewer {
+      flex: 1;
+      position: relative;
+    }
+    #viewer canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #71808b;
+      padding: 24px;
+      line-height: 1.8;
+      pointer-events: none;
+    }
+    .CodeMirror-hints {
+      background: #11161d !important;
+      border: 1px solid rgba(255,255,255,0.12) !important;
+      color: #edf1f3 !important;
+      border-radius: 10px;
+    }
+    .CodeMirror-hint-active {
+      background: rgba(125, 211, 223, 0.18) !important;
+      color: #f8fafc !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <div class="brand">cq<span>3d</span> editor</div>
+    <div id="status">ready</div>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-source">download .cq3d</button>
+    <button class="btn" id="btn-stl">download .stl</button>
+    <button class="btn" id="btn-step">download .step</button>
+  </div>
+
+  <div id="split">
+    <div id="editor-panel">
+      <div class="panel-header">editor - .cq3d</div>
+      <textarea id="editor"></textarea>
+      <div id="error-bar"></div>
+    </div>
+    <div id="resizer"></div>
+    <div id="preview-panel">
+      <div class="panel-header">stl preview</div>
+      <div id="preview-toolbar">
+        <div id="meta-object">final object: -</div>
+        <div id="meta-size">bbox: -</div>
+      </div>
+      <div id="viewer">
+        <div id="placeholder">
+          Type CQ3D on the left.<br>
+          <code>Ctrl+Space</code> opens autocomplete and the backend generates STL for preview.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+    import { STLLoader } from "https://unpkg.com/three@0.164.1/examples/jsm/loaders/STLLoader.js";
+    import { OrbitControls } from "https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js";
+
+    const keywordConfig = {
+      keywords: [],
+      properties: [],
+      functions: [],
+      values: [],
+      unsupported: [],
+    };
+
+    const BLOCK_STARTERS = new Set(["box", "cylinder", "combine", "move", "rotate", "fillet"]);
+
+    function defineMode() {
+      CodeMirror.defineMode("cq3d", function() {
+        return {
+          token(stream) {
+            if (stream.eatSpace()) return null;
+            if (stream.peek() === "#") {
+              stream.skipToEnd();
+              return "comment";
+            }
+            if (stream.match(/^-?[0-9]+(\.[0-9]+)?/)) return "number";
+            if (stream.match(/^[+\-*/()=,]/)) return "operator";
+            if (stream.match(/^"(?:[^"\\\\]|\\\\.)*"?/)) return "string";
+            if (stream.match(/^[A-Za-z_][A-Za-z0-9_]*/)) {
+              const word = stream.current();
+              if (keywordConfig.keywords.includes(word)) return "keyword";
+              if (keywordConfig.properties.includes(word)) return "property";
+              if (keywordConfig.functions.includes(word)) return "builtin";
+              if (keywordConfig.values.includes(word)) return "atom";
+              return "variable";
+            }
+            stream.next();
+            return null;
+          },
+        };
+      });
+    }
+
+    function currentBlock(editor, cursor) {
+      const stack = [];
+      for (let lineNumber = 0; lineNumber <= cursor.line; lineNumber += 1) {
+        const line = editor.getLine(lineNumber);
+        const stop = lineNumber === cursor.line ? cursor.ch : line.length;
+        const text = line.slice(0, stop).trim();
+        if (!text) continue;
+        const first = text.split(/\s+/)[0];
+        if (BLOCK_STARTERS.has(first)) stack.push(first);
+        else if (first === "end") stack.pop();
+      }
+      return stack.length ? stack[stack.length - 1] : null;
+    }
+
+    const BLOCK_PROPERTIES = {
+      box: ["size", "at", "center", "end"],
+      cylinder: ["radius", "diameter", "height", "at", "axis", "end"],
+      combine: ["union", "cut", "end"],
+      move: ["by", "end"],
+      rotate: ["around", "angle", "origin", "end"],
+      fillet: ["radius", "safe", "edges", "end"],
+    };
+
+    function cq3dHint(editor) {
+      const cursor = editor.getCursor();
+      const line = editor.getLine(cursor.line);
+      const before = line.slice(0, cursor.ch);
+      const wordMatch = before.match(/[A-Za-z0-9_"]*$/);
+      const typed = wordMatch ? wordMatch[0] : "";
+      const from = CodeMirror.Pos(cursor.line, cursor.ch - typed.length);
+      const propMatch = before.trimStart().match(/^([A-Za-z_][A-Za-z0-9_]*)\s+[A-Za-z0-9_"]*$/);
+      const prop = propMatch ? propMatch[1] : null;
+
+      let candidates = [];
+      if (prop && ["axis", "around"].includes(prop)) candidates = ["x", "y", "z"];
+      else if (prop === "center" || prop === "safe") candidates = ["true", "false"];
+      else if (prop === "edges") candidates = ["all"];
+      else if (prop === "export") candidates = ["stl", "step"];
+      else {
+        const block = currentBlock(editor, cursor);
+        if (block) candidates = BLOCK_PROPERTIES[block] || [];
+        else candidates = [...keywordConfig.keywords, ...keywordConfig.functions];
+      }
+
+      const list = [...new Set(candidates)]
+        .filter(item => item.toLowerCase().startsWith(typed.replace(/"/g, "").toLowerCase()))
+        .sort();
+
+      return { list, from, to: cursor };
+    }
+
+    defineMode();
+
+    const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+      mode: "cq3d",
+      theme: "dracula",
+      lineNumbers: true,
+      autoCloseBrackets: true,
+      extraKeys: {
+        "Ctrl-Space": cm => cm.showHint({ hint: cq3dHint }),
+        "Cmd-Space": cm => cm.showHint({ hint: cq3dHint }),
+        "Ctrl-/": "toggleComment",
+        "Cmd-/": "toggleComment",
+      },
+    });
+
+    const statusEl = document.getElementById("status");
+    const errorBar = document.getElementById("error-bar");
+    const placeholder = document.getElementById("placeholder");
+    const metaObject = document.getElementById("meta-object");
+    const metaSize = document.getElementById("meta-size");
+    const viewerEl = document.getElementById("viewer");
+
+    let compileTimer = null;
+    let lastPreviewUrl = null;
+    let currentObjectUrl = null;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(viewerEl.clientWidth, viewerEl.clientHeight);
+    viewerEl.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x10161d);
+    const camera = new THREE.PerspectiveCamera(45, viewerEl.clientWidth / viewerEl.clientHeight, 0.1, 5000);
+    camera.position.set(140, 120, 160);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x28313b, 1.1));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    dirLight.position.set(140, 200, 160);
+    scene.add(dirLight);
+    scene.add(new THREE.GridHelper(400, 20, 0x35505c, 0x22303a));
+
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xe5bb6a,
+      metalness: 0.16,
+      roughness: 0.58,
+    });
+    const loader = new STLLoader();
+    let mesh = null;
+
+    function setStatus(kind, text) {
+      statusEl.className = kind ? kind : "";
+      statusEl.textContent = text;
+    }
+
+    function setError(text) {
+      if (!text) {
+        errorBar.textContent = "";
+        errorBar.classList.remove("visible");
+        return;
+      }
+      errorBar.textContent = text;
+      errorBar.classList.add("visible");
+    }
+
+    function clearMesh() {
+      if (!mesh) return;
+      scene.remove(mesh);
+      mesh.geometry.dispose();
+      mesh = null;
+    }
+
+    function renderStlBuffer(buffer) {
+      clearMesh();
+      const geometry = loader.parse(buffer);
+      geometry.computeVertexNormals();
+      mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
+
+      const box = new THREE.Box3().setFromObject(mesh);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      mesh.position.sub(center);
+
+      const radius = Math.max(size.x, size.y, size.z) || 1;
+      camera.position.set(radius * 1.8, radius * 1.4, radius * 1.9);
+      camera.near = Math.max(radius / 100, 0.1);
+      camera.far = Math.max(radius * 20, 1000);
+      camera.updateProjectionMatrix();
+      controls.target.set(0, 0, 0);
+      controls.update();
+      placeholder.style.display = "none";
+    }
+
+    async function compileSource() {
+      const source = editor.getValue();
+      setStatus("busy", "compiling");
+      try {
+        const response = await fetch("/api/compile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source }),
+        });
+        const payload = await response.json();
+        if (!response.ok || payload.error) {
+          setStatus("err", "error");
+          setError(payload.error || "Unknown error");
+          metaObject.textContent = "final object: -";
+          metaSize.textContent = "bbox: -";
+          clearMesh();
+          placeholder.style.display = "flex";
+          return;
+        }
+
+        lastPreviewUrl = payload.preview_url;
+        const stlResponse = await fetch(payload.preview_url);
+        const arrayBuffer = await stlResponse.arrayBuffer();
+        renderStlBuffer(arrayBuffer);
+
+        setError("");
+        setStatus("ok", "preview ready");
+        metaObject.textContent = `final object: ${payload.final_object_id || "-"}`;
+        metaSize.textContent = `bbox: ${payload.bbox.xlen.toFixed(2)} × ${payload.bbox.ylen.toFixed(2)} × ${payload.bbox.zlen.toFixed(2)} mm`;
+      } catch (error) {
+        setStatus("err", "error");
+        setError(`Internal error: ${error}`);
+      }
+    }
+
+    function scheduleCompile() {
+      clearTimeout(compileTimer);
+      compileTimer = setTimeout(compileSource, 350);
+    }
+
+    function downloadSource() {
+      const blob = new Blob([editor.getValue()], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "model.cq3d";
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function exportModel(format) {
+      const response = await fetch(`/api/export/${format}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: editor.getValue(), filename: "model" }),
+      });
+      if (!response.ok) {
+        const payload = await response.json();
+        setStatus("err", "export failed");
+        setError(payload.error || "Export failed");
+        return;
+      }
+
+      const blob = await response.blob();
+      if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+      currentObjectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = currentObjectUrl;
+      link.download = `model.${format}`;
+      link.click();
+    }
+
+    document.getElementById("btn-source").addEventListener("click", downloadSource);
+    document.getElementById("btn-stl").addEventListener("click", () => exportModel("stl"));
+    document.getElementById("btn-step").addEventListener("click", () => exportModel("step"));
+
+    editor.on("change", scheduleCompile);
+
+    window.addEventListener("resize", () => {
+      renderer.setSize(viewerEl.clientWidth, viewerEl.clientHeight);
+      camera.aspect = viewerEl.clientWidth / viewerEl.clientHeight;
+      camera.updateProjectionMatrix();
+    });
+
+    const resizer = document.getElementById("resizer");
+    const editorPanel = document.getElementById("editor-panel");
+    let dragging = false;
+
+    resizer.addEventListener("mousedown", () => {
+      dragging = true;
+      resizer.classList.add("active");
+    });
+    window.addEventListener("mousemove", event => {
+      if (!dragging) return;
+      const width = Math.min(Math.max(event.clientX, 260), window.innerWidth - 260);
+      editorPanel.style.flexBasis = `${width}px`;
+      renderer.setSize(viewerEl.clientWidth, viewerEl.clientHeight);
+      camera.aspect = viewerEl.clientWidth / viewerEl.clientHeight;
+      camera.updateProjectionMatrix();
+    });
+    window.addEventListener("mouseup", () => {
+      dragging = false;
+      resizer.classList.remove("active");
+    });
+
+    async function initialize() {
+      const [keywordResponse, sourceResponse] = await Promise.all([
+        fetch("/api/keywords"),
+        fetch("/api/default-source"),
+      ]);
+      Object.assign(keywordConfig, await keywordResponse.json());
+      const sourcePayload = await sourceResponse.json();
+      editor.setValue(sourcePayload.source);
+      editor.focus();
+      scheduleCompile();
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    initialize().catch(error => {
+      setStatus("err", "load failed");
+      setError(`Failed to load editor assets: ${error}`);
+    });
+  </script>
+</body>
+</html>
