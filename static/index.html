@@ -334,7 +334,7 @@
     const metaObject = document.getElementById("meta-object");
     const metaSize = document.getElementById("meta-size");
     const viewerEl = document.getElementById("viewer");
-    const VIEW_STATE_KEY = "cq3d.viewerState.v1";
+    const VIEW_STATE_KEY = "cq3d.viewerState.v2";
 
     let compileTimer = null;
     let lastPreviewUrl = null;
@@ -348,15 +348,19 @@
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x10161d);
     const camera = new THREE.PerspectiveCamera(45, viewerEl.clientWidth / viewerEl.clientHeight, 0.1, 5000);
+    camera.up.set(0, 0, 1);
     camera.position.set(140, 120, 160);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    controls.screenSpacePanning = true;
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0x28313b, 1.1));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
     dirLight.position.set(140, 200, 160);
     scene.add(dirLight);
-    scene.add(new THREE.GridHelper(400, 20, 0x35505c, 0x22303a));
+    const grid = new THREE.GridHelper(400, 20, 0x35505c, 0x22303a);
+    grid.rotation.x = Math.PI / 2;
+    scene.add(grid);
 
     const material = new THREE.MeshStandardMaterial({
       color: 0xe5bb6a,
