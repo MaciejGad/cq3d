@@ -354,9 +354,9 @@
     controls.enableDamping = true;
     controls.screenSpacePanning = true;
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x28313b, 1.1));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
-    dirLight.position.set(140, 200, 160);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x28313b, 0.95));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.95);
+    dirLight.position.set(0, 0, 260);
     scene.add(dirLight);
     const grid = new THREE.GridHelper(400, 20, 0x35505c, 0x22303a);
     grid.rotation.x = Math.PI / 2;
