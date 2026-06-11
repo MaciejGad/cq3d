@@ -1,90 +1,466 @@
-# AGENT Guide
+# CQ3D Authoring Guide For Agents
 
-## Project Goal
+This file is for agents that need to create valid `.cq3d` source files.
+It describes only the currently implemented DSL behavior.
 
-This repository implements a text-based DSL for generating 3D printable objects with CadQuery.
-The current target is the MVP defined in:
+## Purpose
 
-- [`cadquery_3d_dsl_design.md`](/Users/bazyl/Code/Essa3d/cadquery_3d_dsl_design.md)
-- [`cadquery_3d_dsl_implementation_plan.md`](/Users/bazyl/Code/Essa3d/cadquery_3d_dsl_implementation_plan.md)
+Use `.cq3d` files to describe 3D printable geometry in a simple line-based text format.
+All dimensions are in millimeters.
 
-Treat those documents as the product source of truth.
+## File Rules
 
-## Current Architecture
+- Use plain text files with the `.cq3d` extension.
+- Syntax is line-based and block-oriented.
+- Blocks end with `end`.
+- Nested blocks are not supported.
+- Full-line comments starting with `#` are allowed.
+- Inline comments are not part of the implemented syntax, so avoid them.
+- Empty lines are allowed.
 
-Core pipeline:
+## Required Document Structure
 
-1. Parse `.cq3d` text into an internal AST.
-2. Validate semantics and evaluate variables safely.
-3. Build CadQuery geometry through the backend registry.
-4. Export the final object to STL and STEP.
+A valid file should usually start with:
 
-Primary modules:
+```text
+model some_name
+unit mm
+```
 
-- [`cq3d/errors.py`](/Users/bazyl/Code/Essa3d/cq3d/errors.py): user-facing exceptions with line numbers
-- [`cq3d/ast_nodes.py`](/Users/bazyl/Code/Essa3d/cq3d/ast_nodes.py): typed AST dataclasses
-- [`cq3d/expressions.py`](/Users/bazyl/Code/Essa3d/cq3d/expressions.py): safe expression evaluator
-- [`cq3d/parser.py`](/Users/bazyl/Code/Essa3d/cq3d/parser.py): line-based parser
-- [`cq3d/validator.py`](/Users/bazyl/Code/Essa3d/cq3d/validator.py): semantic validation
-- [`cq3d/cadquery_backend.py`](/Users/bazyl/Code/Essa3d/cq3d/cadquery_backend.py): CadQuery object generation
-- [`cq3d/exporters.py`](/Users/bazyl/Code/Essa3d/cq3d/exporters.py): STL / STEP export
-- [`cq3d/cli.py`](/Users/bazyl/Code/Essa3d/cq3d/cli.py): `build` and `validate`
-- [`cq3d/compiler.py`](/Users/bazyl/Code/Essa3d/cq3d/compiler.py): file-level orchestration
+Rules:
 
-## MVP Rules
+- `model` is optional but recommended.
+- `unit mm` is required.
+- Only `mm` is supported.
+- `model` and `unit` may appear at most once.
 
-- Do not use Python `eval`.
-- Use the safe AST whitelist in `expressions.py`.
-- Keep syntax line-based and block-oriented.
-- Preserve readable validation errors with source line numbers.
-- Resolve relative export paths from the input file directory.
-- Keep the parser AST-only; no direct CadQuery construction in parser code.
+## Identifiers
 
-## Supported MVP Commands
+Variable names and object ids must match:
 
+```text
+[A-Za-z_][A-Za-z0-9_]*
+```
+
+Examples:
+
+- valid: `body`, `step_height`, `peg2`
+- invalid: `2body`, `front-width`, `upper step`
+
+Reserved words must not be used as variable names:
+
+- `box`
+- `cylinder`
+- `combine`
+- `move`
+- `rotate`
+- `fillet`
 - `model`
-- `unit mm`
+- `unit`
+- `end`
+- `export`
+- `union`
+- `cut`
+- `size`
+- `at`
+- `radius`
+- `diameter`
+- `height`
+- `axis`
+- `by`
+- `around`
+- `angle`
+- `origin`
+- `safe`
+- `center`
+
+## Variables
+
+Variables are defined with:
+
+```text
+name = expression
+```
+
+Example:
+
+```text
+front_width = 165
+side_depth = 160
+step_depth = side_depth / 2
+```
+
+Rules:
+
+- Variables must be defined before use.
+- Reassignment is not allowed.
+- Expressions must evaluate to numbers.
+- Unit suffixes such as `10mm` are rejected.
+
+## Supported Expressions
+
+Allowed operators:
+
+- `+`
+- `-`
+- `*`
+- `/`
+- parentheses
+- unary `+`
+- unary `-`
+
+Allowed functions:
+
+- `min(...)`
+- `max(...)`
+- `abs(...)`
+- `round(...)`
+- `floor(...)`
+- `ceil(...)`
+
+Examples:
+
+```text
+width = 165
+depth = 160
+step_depth = depth / 2
+wall = max(3, width / 80)
+offset = -(depth / 4)
+```
+
+Avoid anything else. There is no `eval`, no custom functions, and no unit literals.
+
+## Implemented Commands
+
+Currently implemented top-level commands:
+
 - variable assignment
 - `box`
 - `cylinder`
-- `combine` with `union` and `cut`
+- `combine`
 - `move`
 - `rotate`
 - `fillet`
 - `export stl`
 - `export step`
 
-## Development Workflow
+## `box`
 
-Set up dependencies:
+Syntax:
 
-```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-dev.txt
+```text
+box <id>
+  size <x> <y> <z>
+  [at <x> <y> <z>]
+  [center true|false]
+end
 ```
 
-Run tests:
+Rules:
 
-```bash
-.venv/bin/python -m pytest
+- `size` is required.
+- all three size values must be greater than zero
+- `at` is optional
+- `center` is optional
+- default `center` is `false`
+
+Implemented placement behavior:
+
+- when `center false` is used or omitted, the box is treated as lower-corner placed
+- `at 0 0 0` means the lower-front-left corner is at the origin
+- with `center true`, CadQuery centered placement is used
+
+Example:
+
+```text
+box base
+  size 100 60 10
+  at 0 0 0
+end
 ```
 
-Validate the example:
+## `cylinder`
 
-```bash
-.venv/bin/python -m cq3d.cli validate examples/display_steps.cq3d
+Syntax:
+
+```text
+cylinder <id>
+  radius <r>
+  height <h>
+  [at <x> <y> <z>]
+  [axis x|y|z]
+end
 ```
 
-Build the example:
+or:
 
-```bash
-.venv/bin/python -m cq3d.cli build examples/display_steps.cq3d
+```text
+cylinder <id>
+  diameter <d>
+  height <h>
+  [at <x> <y> <z>]
+  [axis x|y|z]
+end
 ```
 
-## When Extending the DSL
+Rules:
 
-- Add tests before or alongside new commands.
-- Prefer typed AST nodes over ad hoc dictionaries.
-- Keep validation separate from geometry generation.
-- Verify geometry with bounding boxes, not only by checking files exist.
-- Do not add post-MVP features until the current MVP remains green.
+- `height` is required
+- exactly one of `radius` or `diameter` must be provided
+- radius, diameter, and height must be greater than zero
+- default axis is `z`
+- allowed axes: `x`, `y`, `z`
+
+Implemented placement behavior:
+
+- default cylinder is extruded along `z`
+- `at` translates the resulting solid
+
+Example:
+
+```text
+cylinder peg
+  diameter 8
+  height 20
+  at 10 10 0
+end
+```
+
+## `combine`
+
+Syntax:
+
+```text
+combine <id>
+  union <obj1> <obj2> [obj3 ...]
+  [cut <base> <tool1> [tool2 ...]]
+end
+```
+
+Rules:
+
+- at least one operation is required
+- implemented operations are only `union` and `cut`
+- `union` requires at least two object references
+- `cut` requires one base object and at least one cutter
+- referenced objects must already exist
+- the new combine result gets its own id
+
+Notes:
+
+- operations are processed in order
+- object references must point to previously created objects
+
+Example:
+
+```text
+combine body
+  union lower upper
+end
+```
+
+## `move`
+
+Syntax:
+
+```text
+move <id>
+  by <x> <y> <z>
+end
+```
+
+Rules:
+
+- the object must already exist
+- exactly one `by` line is allowed
+
+Example:
+
+```text
+move body
+  by 0 20 0
+end
+```
+
+## `rotate`
+
+Syntax:
+
+```text
+rotate <id>
+  around x|y|z
+  angle <degrees>
+  [origin <x> <y> <z>]
+end
+```
+
+Rules:
+
+- the object must already exist
+- `around` is required
+- `angle` is required
+- `origin` is optional
+- default origin is `0 0 0`
+
+Example:
+
+```text
+rotate bracket
+  around z
+  angle 90
+  origin 0 0 0
+end
+```
+
+## `fillet`
+
+Syntax:
+
+```text
+fillet <id>
+  radius <r>
+  [safe true|false]
+  [edges all]
+end
+```
+
+Rules:
+
+- the object must already exist
+- `radius` is required and must be greater than zero
+- only `edges all` is currently supported
+- `safe` defaults to `true`
+
+Implemented behavior:
+
+- fillet is applied to all edges
+- if CadQuery fillet fails and `safe true` is used, the object is left unchanged
+- if CadQuery fillet fails and `safe false` is used, the build fails
+
+Example:
+
+```text
+fillet body
+  radius 2
+  safe true
+end
+```
+
+## Export Commands
+
+Syntax:
+
+```text
+export stl "file.stl"
+export step "file.step"
+```
+
+Path is optional:
+
+```text
+export stl
+export step
+```
+
+Rules:
+
+- only `stl` and `step` are supported
+- export paths may be relative or absolute
+- relative export paths are resolved from the `.cq3d` file directory
+- if no path is given, the default is `<model_name>.<format>` or `model.<format>`
+
+Example:
+
+```text
+export stl "exports/sample.stl"
+export step "exports/sample.step"
+```
+
+## Object Rules
+
+- Shape ids must be unique.
+- Combine result ids must also be unique.
+- `move`, `rotate`, and `fillet` operate on an existing object id.
+- Unknown object references fail validation.
+
+## Final Object Behavior
+
+The build system exports the final object using this priority:
+
+1. an object named `body`, if it exists
+2. otherwise the last created or modified object
+
+For best results, name the intended final object `body`.
+
+## Recommended Authoring Pattern
+
+Use this order:
+
+1. `model`
+2. `unit mm`
+3. variables
+4. primitive shapes
+5. `combine`
+6. transforms
+7. `fillet`
+8. exports
+
+## Good Example
+
+```text
+model display_steps
+unit mm
+
+front_width = 165
+side_depth = 160
+step_height = 75
+step_depth = side_depth / 2
+
+box lower_step
+  size front_width side_depth step_height
+  at 0 0 0
+end
+
+box upper_step
+  size front_width step_depth step_height
+  at 0 step_depth step_height
+end
+
+combine body
+  union lower_step upper_step
+end
+
+fillet body
+  radius 2
+end
+
+export stl "display_steps.stl"
+export step "display_steps.step"
+```
+
+## Things Not To Use Yet
+
+These are not implemented in the current DSL and should not be emitted:
+
+- `rounded_box`
+- `sphere`
+- `cone`
+- `prism`
+- `mirror`
+- `repeat`
+- `grid`
+- `chamfer`
+- `shell`
+- `text3d`
+- `intersect`
+- inline comments
+- nested blocks
+- unit suffixes like `mm`
+
+## Practical Guidance For Agents
+
+- Prefer simple variables over repeating numeric literals.
+- Keep object ids descriptive: `base`, `upper_step`, `body`, `peg`, `hole`.
+- Use `body` as the final combined object name.
+- Emit one command per line and keep blocks clean for Git diffs.
+- When in doubt, stay within the currently implemented commands only.
