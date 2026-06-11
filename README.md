@@ -118,6 +118,15 @@ Run the full suite:
 .venv/bin/python -m pytest
 ```
 
+Generate an HTML coverage report:
+
+```bash
+.venv/bin/python -m coverage run -m pytest
+.venv/bin/python -m coverage html
+```
+
+Then open [`htmlcov/index.html`](/Users/bazyl/Code/Essa3d/htmlcov/index.html) in the app or browser to inspect line-by-line coverage.
+
 The tests cover:
 
 - expression parsing and evaluation

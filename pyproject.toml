@@ -9,6 +9,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "coverage[toml]",
     "pytest",
     "ruff",
     "mypy",
@@ -19,6 +20,17 @@ cq3d = "cq3d.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["cq3d"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+[tool.coverage.html]
+directory = "htmlcov"
 
 [tool.ruff]
 line-length = 100
