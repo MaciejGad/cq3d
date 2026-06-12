@@ -206,9 +206,21 @@ end
 
 See:
 
+- [`examples/rounded_box_and_chamfer.cq3d`](/Users/bazyl/Code/Essa3d/examples/rounded_box_and_chamfer.cq3d)
+- [`examples/cone_axis_showcase.cq3d`](/Users/bazyl/Code/Essa3d/examples/cone_axis_showcase.cq3d)
+- [`examples/copy_and_slot.cq3d`](/Users/bazyl/Code/Essa3d/examples/copy_and_slot.cq3d)
+- [`examples/object_specific_exports.cq3d`](/Users/bazyl/Code/Essa3d/examples/object_specific_exports.cq3d)
 - [`examples/turkish_spindle_advanced.cq3d`](/Users/bazyl/Code/Essa3d/examples/turkish_spindle_advanced.cq3d)
 
-This example demonstrates:
+These examples demonstrate:
+
+- `rounded_box` plus `chamfer`
+- cone placement on `x`, `y`, and `z`
+- `slot` and `copy` used to build crossed parts
+- object-specific STL and STEP export
+- a full multi-part spindle assembly
+
+The spindle example demonstrates:
 
 - crossed rounded arms
 - slotted removable parts

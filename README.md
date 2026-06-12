@@ -92,6 +92,11 @@ The DSL now also supports:
 Extended syntax, validation rules, limitations, and examples are documented in:
 
 - [`docs/extended_geometry_features.md`](/Users/bazyl/Code/Essa3d/docs/extended_geometry_features.md)
+- [`examples/rounded_box_and_chamfer.cq3d`](/Users/bazyl/Code/Essa3d/examples/rounded_box_and_chamfer.cq3d)
+- [`examples/cone_axis_showcase.cq3d`](/Users/bazyl/Code/Essa3d/examples/cone_axis_showcase.cq3d)
+- [`examples/copy_and_slot.cq3d`](/Users/bazyl/Code/Essa3d/examples/copy_and_slot.cq3d)
+- [`examples/object_specific_exports.cq3d`](/Users/bazyl/Code/Essa3d/examples/object_specific_exports.cq3d)
+- [`examples/turkish_spindle_advanced.cq3d`](/Users/bazyl/Code/Essa3d/examples/turkish_spindle_advanced.cq3d)
 
 ## Example
 

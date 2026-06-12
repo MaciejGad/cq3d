@@ -1,0 +1,34 @@
+model object_specific_exports
+unit mm
+
+cylinder shaft
+  radius 4
+  height 80
+  at 0 0 0
+end
+
+rounded_box block
+  size 40 20 10
+  radius 2
+  at -20 -10 20
+end
+
+copy block_copy from block
+  by 0 30 0
+end
+
+combine body
+  union shaft block block_copy
+end
+
+export stl "exports/object_specific_shaft.stl"
+  object shaft
+end
+
+export stl "exports/object_specific_block.stl"
+  object block
+end
+
+export step "exports/object_specific_assembly.step"
+  objects shaft block block_copy
+end

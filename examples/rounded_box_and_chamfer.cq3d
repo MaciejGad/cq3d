@@ -1,0 +1,26 @@
+model rounded_box_and_chamfer
+unit mm
+
+box base
+  size 80 40 14
+  at 0 0 0
+end
+
+chamfer base
+  distance 1
+  safe false
+  edges all
+end
+
+rounded_box top_cap
+  size 70 30 8
+  radius 3
+  at 5 5 14
+end
+
+combine body
+  union base top_cap
+end
+
+export stl "exports/rounded_box_and_chamfer.stl"
+export step "exports/rounded_box_and_chamfer.step"

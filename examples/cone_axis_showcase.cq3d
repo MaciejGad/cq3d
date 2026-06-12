@@ -1,0 +1,33 @@
+model cone_axis_showcase
+unit mm
+
+cone cone_z
+  diameter1 20
+  diameter2 8
+  height 30
+  at 0 0 0
+  axis z
+end
+
+cone cone_x
+  radius1 10
+  radius2 4
+  height 30
+  at 35 0 10
+  axis x
+end
+
+cone cone_y
+  diameter1 18
+  diameter2 6
+  height 30
+  at 0 35 10
+  axis y
+end
+
+combine body
+  union cone_z cone_x cone_y
+end
+
+export stl "exports/cone_axis_showcase.stl"
+export step "exports/cone_axis_showcase.step"

@@ -1,0 +1,32 @@
+model copy_and_slot
+unit mm
+
+rounded_bar arm_a_blank
+  length 120
+  width 20
+  height 8
+  radius 3
+  axis x
+  at -60 -10 0
+end
+
+slot center_slot
+  size 24 8 4
+  clearance 0.2
+  at -12 -4 4
+end
+
+combine arm_a
+  cut arm_a_blank center_slot
+end
+
+copy arm_b from arm_a
+  rotate around z angle 90 origin 0 0 0
+end
+
+combine body
+  union arm_a arm_b
+end
+
+export stl "exports/copy_and_slot.stl"
+export step "exports/copy_and_slot.step"
