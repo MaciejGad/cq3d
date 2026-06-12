@@ -1,12 +1,12 @@
 # CQ3D Authoring Guide For Agents
 
 This file is for agents that need to create valid `.cq3d` source files.
-It describes only the currently implemented DSL behavior.
+It documents the currently implemented DSL behavior only.
 
 ## Purpose
 
-Use `.cq3d` files to describe 3D printable geometry in a simple line-based text format.
-All dimensions are in millimeters.
+Use `.cq3d` files to describe 3D printable geometry in a line-based text format.
+All dimensions are millimeters.
 
 ## Global Coordinate System
 
@@ -16,7 +16,7 @@ The implemented DSL uses a right-handed coordinate system:
 - `Y` = front to back / depth
 - `Z` = bottom to top / height
 
-The global origin is:
+Global origin:
 
 ```text
 0 0 0 = lower-front-left corner of project space
@@ -24,24 +24,24 @@ The global origin is:
 
 Practical meaning:
 
-- `Z = 0` is the bottom plane / print bed level
+- `Z = 0` is the print bed / bottom plane
 - positive `X` moves right
 - positive `Y` moves toward the back
 - positive `Z` moves upward
 
 ## File Rules
 
-- Use plain text files with the `.cq3d` extension.
+- Use `.cq3d` extension.
 - Syntax is line-based and block-oriented.
 - Blocks end with `end`.
 - Nested blocks are not supported.
 - Full-line comments starting with `#` are allowed.
-- Inline comments are not part of the implemented syntax, so avoid them.
+- Inline comments are not supported.
 - Empty lines are allowed.
 
 ## Required Document Structure
 
-A valid file should usually start with:
+Recommended start:
 
 ```text
 model some_name
@@ -50,14 +50,14 @@ unit mm
 
 Rules:
 
-- `model` is optional but recommended.
-- `unit mm` is required.
-- Only `mm` is supported.
-- `model` and `unit` may appear at most once.
+- `model` is optional but recommended
+- `unit mm` is required
+- only `mm` is supported
+- `model` and `unit` may appear at most once
 
 ## Identifiers
 
-Variable names and object ids must match:
+Identifiers must match:
 
 ```text
 [A-Za-z_][A-Za-z0-9_]*
@@ -71,11 +71,17 @@ Examples:
 Reserved words must not be used as variable names:
 
 - `box`
+- `rounded_box`
+- `rounded_bar`
 - `cylinder`
+- `cone`
+- `slot`
 - `combine`
 - `move`
 - `rotate`
+- `copy`
 - `fillet`
+- `chamfer`
 - `model`
 - `unit`
 - `end`
@@ -85,7 +91,11 @@ Reserved words must not be used as variable names:
 - `size`
 - `at`
 - `radius`
+- `radius1`
+- `radius2`
 - `diameter`
+- `diameter1`
+- `diameter2`
 - `height`
 - `axis`
 - `by`
@@ -94,6 +104,11 @@ Reserved words must not be used as variable names:
 - `origin`
 - `safe`
 - `center`
+- `distance`
+- `clearance`
+- `from`
+- `object`
+- `objects`
 
 ## Variables
 
@@ -103,20 +118,12 @@ Variables are defined with:
 name = expression
 ```
 
-Example:
-
-```text
-front_width = 165
-side_depth = 160
-step_depth = side_depth / 2
-```
-
 Rules:
 
-- Variables must be defined before use.
-- Reassignment is not allowed.
-- Expressions must evaluate to numbers.
-- Unit suffixes such as `10mm` are rejected.
+- variables must be defined before use
+- reassignment is not allowed
+- expressions must evaluate to numbers
+- unit suffixes like `10mm` are rejected
 
 ## Supported Expressions
 
@@ -149,7 +156,7 @@ wall = max(3, width / 80)
 offset = -(depth / 4)
 ```
 
-Avoid anything else. There is no `eval`, no custom functions, and no unit literals.
+No `eval`, no custom functions, no unit literals.
 
 ## Implemented Commands
 
@@ -157,11 +164,17 @@ Currently implemented top-level commands:
 
 - variable assignment
 - `box`
+- `rounded_box`
+- `rounded_bar`
 - `cylinder`
+- `cone`
+- `slot`
 - `combine`
 - `move`
 - `rotate`
+- `copy`
 - `fillet`
+- `chamfer`
 - `export stl`
 - `export step`
 
@@ -179,26 +192,73 @@ end
 
 Rules:
 
-- `size` is required.
-- all three size values must be greater than zero
+- `size` is required
+- all size values must be greater than zero
 - `at` is optional
 - `center` is optional
 - default `center` is `false`
 
-Implemented placement behavior:
+Placement:
 
-- when `center false` is used or omitted, the box is treated as lower-corner placed
-- `at x y z` places the lower-front-left-bottom corner at that coordinate
+- with `center false`, `at x y z` places the lower-front-left-bottom corner
 - with `center true`, CadQuery centered placement is used
 
-Example:
+## `rounded_box`
+
+Syntax:
 
 ```text
-box base
-  size 100 60 10
-  at 0 0 0
+rounded_box <id>
+  size <x> <y> <z>
+  radius <r>
+  [at <x> <y> <z>]
+  [center true|false]
 end
 ```
+
+Rules:
+
+- `size` is required
+- `radius` is required
+- all size values must be greater than zero
+- radius must be greater than zero
+- radius must not exceed half of the smallest dimension
+- `at` and `center` behave like `box`
+
+Behavior:
+
+- built from a box
+- fillet applied to all edges
+- if the fillet fails, the build fails with a clear error
+
+## `rounded_bar`
+
+Syntax:
+
+```text
+rounded_bar <id>
+  length <l>
+  width <w>
+  height <h>
+  radius <r>
+  [at <x> <y> <z>]
+  [axis x|y|z]
+end
+```
+
+Rules:
+
+- `length`, `width`, `height`, and `radius` are required
+- all dimensions must be greater than zero
+- radius must not exceed half of the width or height
+- default axis is `x`
+
+Behavior:
+
+- `axis x`: length runs along `X`
+- `axis y`: length runs along `Y`
+- `axis z`: length runs along `Z`
+- `at` places the lower-front-left-bottom corner of the resulting bounding box
 
 ## `cylinder`
 
@@ -232,21 +292,77 @@ Rules:
 - default axis is `z`
 - allowed axes: `x`, `y`, `z`
 
-Implemented placement behavior:
+Placement:
 
-- default vertical cylinder is extruded along `+z`
-- `at x y z` places the center of the bottom face at that coordinate
-- for `axis x` and `axis y`, the cylinder extends in the positive axis direction from the anchor point
+- `at x y z` places the center of the bottom face
+- default vertical cylinder extends along `+z`
+- `axis x` and `axis y` extend in the positive axis direction
 
-Example:
+## `cone`
+
+Syntax:
 
 ```text
-cylinder peg
-  diameter 8
-  height 20
-  at 10 10 0
+cone <id>
+  diameter1 <d1>
+  diameter2 <d2>
+  height <h>
+  [at <x> <y> <z>]
+  [axis x|y|z]
 end
 ```
+
+or:
+
+```text
+cone <id>
+  radius1 <r1>
+  radius2 <r2>
+  height <h>
+  [at <x> <y> <z>]
+  [axis x|y|z]
+end
+```
+
+Rules:
+
+- `height` is required
+- use either the diameter pair or the radius pair
+- do not mix diameter and radius fields
+- all dimensions must be greater than zero
+- default axis is `z`
+
+Placement:
+
+- `at x y z` places the center of the bottom face
+- `axis z` extends upward in `+z`
+- `axis x` and `axis y` extend in the positive axis direction
+
+## `slot`
+
+Syntax:
+
+```text
+slot <id>
+  size <x> <y> <z>
+  [clearance <c>]
+  [at <x> <y> <z>]
+  [center true|false]
+end
+```
+
+Rules:
+
+- `size` is required
+- size values must be greater than zero
+- clearance defaults to `0`
+- clearance must be greater than or equal to zero
+- placement follows `box`
+
+Behavior:
+
+- `slot` creates normal visible geometry intended for `combine cut`
+- clearance enlarges the cutter dimensions
 
 ## `combine`
 
@@ -262,7 +378,7 @@ end
 Rules:
 
 - at least one operation is required
-- implemented operations are only `union` and `cut`
+- only `union` and `cut` are implemented
 - `union` requires at least two object references
 - `cut` requires one base object and at least one cutter
 - referenced objects must already exist
@@ -271,13 +387,14 @@ Rules:
 Notes:
 
 - operations are processed in order
-- object references must point to previously created objects
+- a later operation may refer to the in-progress result by the combine id
 
 Example:
 
 ```text
 combine body
-  union lower upper
+  union part_a part_b
+  cut body cutter
 end
 ```
 
@@ -296,14 +413,6 @@ Rules:
 - the object must already exist
 - exactly one `by` line is allowed
 - this is a relative translation applied after object creation
-
-Example:
-
-```text
-move body
-  by 0 20 0
-end
-```
 
 ## `rotate`
 
@@ -325,15 +434,28 @@ Rules:
 - `origin` is optional
 - default origin is `0 0 0`
 
-Example:
+## `copy`
+
+Syntax:
 
 ```text
-rotate bracket
-  around z
-  angle 90
-  origin 0 0 0
+copy <new_id> from <source_id>
+  [by <x> <y> <z>]
+  [rotate around x|y|z angle <degrees> [origin <x> <y> <z>]]
 end
 ```
+
+Rules:
+
+- new id must be unique
+- source object must already exist
+- at least one operation is required
+- operations are applied in block order
+
+Implemented operations:
+
+- `by`
+- `rotate around ... angle ... origin ...`
 
 ## `fillet`
 
@@ -354,24 +476,39 @@ Rules:
 - only `edges all` is currently supported
 - `safe` defaults to `true`
 
-Implemented behavior:
+Behavior:
 
-- fillet is applied to all edges
-- if CadQuery fillet fails and `safe true` is used, the object is left unchanged
-- if CadQuery fillet fails and `safe false` is used, the build fails
+- if fillet fails and `safe true` is used, the object is left unchanged
+- if fillet fails and `safe false` is used, the build fails
 
-Example:
+## `chamfer`
+
+Syntax:
 
 ```text
-fillet body
-  radius 2
-  safe true
+chamfer <id>
+  distance <d>
+  [safe true|false]
+  [edges all]
 end
 ```
 
+Rules:
+
+- the object must already exist
+- `distance` is required
+- distance must be greater than zero
+- only `edges all` is currently supported
+- `safe` defaults to `true`
+
+Behavior:
+
+- if chamfer fails and `safe true` is used, the object is left unchanged
+- if chamfer fails and `safe false` is used, the build fails
+
 ## Export Commands
 
-Syntax:
+Inline syntax:
 
 ```text
 export stl "file.stl"
@@ -385,50 +522,57 @@ export stl
 export step
 ```
 
+Block syntax is also supported:
+
+```text
+export stl "shaft.stl"
+  object shaft
+end
+```
+
+```text
+export step "assembly.step"
+  objects shaft arm_a arm_b
+end
+```
+
 Rules:
 
 - only `stl` and `step` are supported
 - export paths may be relative or absolute
 - relative export paths are resolved from the `.cq3d` file directory
 - if no path is given, the default is `<model_name>.<format>` or `model.<format>`
-
-Example:
-
-```text
-export stl "exports/sample.stl"
-export step "exports/sample.step"
-```
+- `object` exports one named object
+- `objects` exports multiple named objects as one payload
+- all referenced export objects must already exist
 
 ## Object Rules
 
-- Shape ids must be unique.
-- Combine result ids must also be unique.
-- `move`, `rotate`, and `fillet` operate on an existing object id.
-- Unknown object references fail validation.
+- object ids must be unique
+- `move`, `rotate`, `copy`, `fillet`, and `chamfer` refer to existing objects
+- unknown references fail validation
 
 ## Final Object Behavior
 
-The build system exports the final object using this priority:
+If no export object is specified, the build/export system uses:
 
-1. an object named `body`, if it exists
+1. object named `body`
 2. otherwise the last created or modified object
-
-For best results, name the intended final object `body`.
 
 ## Recommended Authoring Pattern
 
-Use this order:
+Recommended order:
 
 1. `model`
 2. `unit mm`
 3. variables
 4. primitive shapes
 5. `combine`
-6. transforms
-7. `fillet`
+6. transforms and copies
+7. `fillet` or `chamfer`
 8. exports
 
-## Good Example
+## Example
 
 ```text
 model display_steps
@@ -463,28 +607,29 @@ export step "display_steps.step"
 
 ## Things Not To Use Yet
 
-These are not implemented in the current DSL and should not be emitted:
+These are still not implemented:
 
-- `rounded_box`
 - `sphere`
-- `cone`
 - `prism`
 - `mirror`
 - `repeat`
 - `grid`
-- `chamfer`
 - `shell`
 - `text3d`
 - `intersect`
+- freeform profile
+- revolve
+- sweep
+- selective edge selectors beyond `edges all`
 - inline comments
 - nested blocks
 - unit suffixes like `mm`
 
 ## Practical Guidance For Agents
 
-- Prefer simple variables over repeating numeric literals.
-- Keep object ids descriptive: `base`, `upper_step`, `body`, `peg`, `hole`.
-- Use `body` as the final combined object name.
-- Emit one command per line and keep blocks clean for Git diffs.
-- Assume world coordinates are preserved through `combine`, `move`, exports, and previews.
-- When in doubt, stay within the currently implemented commands only.
+- Prefer simple variables over repeated numeric literals
+- Keep object ids descriptive: `shaft`, `arm_a`, `arm_slot`, `body`
+- Use `body` as the final combined object name when you want default export behavior
+- Emit one command per line
+- Assume world coordinates are preserved through `combine`, `move`, copy transforms, exports, and preview
+- Stay within the implemented commands only

@@ -29,5 +29,5 @@ def build_file(path: str | Path, *, out_dir: str | Path | None = None) -> FileBu
 
     document = parse_file(path)
     build = build_document(document)
-    exports = export_document(document, build.final_object, out_dir=out_dir)
+    exports = export_document(document, build.final_object, objects=build.objects, out_dir=out_dir)
     return FileBuildResult(build=build, exports=exports)

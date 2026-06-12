@@ -12,6 +12,7 @@ def export_document(
     document: ModelDocument,
     final_object: cq.Workplane | None,
     *,
+    objects: dict[str, cq.Workplane] | None = None,
     out_dir: str | Path | None = None,
 ) -> list[Path]:
     if final_object is None:
@@ -25,7 +26,8 @@ def export_document(
     for export in exports:
         target = _resolve_export_path(export, document, source_dir, override_dir)
         target.parent.mkdir(parents=True, exist_ok=True)
-        cq.exporters.export(final_object, str(target))
+        export_object = _select_export_object(export, final_object, objects)
+        cq.exporters.export(export_object, str(target))
         written.append(target)
 
     return written
@@ -49,3 +51,21 @@ def _resolve_export_path(
         base_dir = override_dir if override_dir is not None else source_dir
         target = base_dir / target
     return target
+
+
+def _select_export_object(
+    export: ExportCommand,
+    final_object: cq.Workplane,
+    objects: dict[str, cq.Workplane] | None,
+) -> cq.Workplane:
+    if not export.object_ids:
+        return final_object
+    if objects is None:
+        raise BackendError("object-specific export requires built objects")
+    if len(export.object_ids) == 1:
+        return objects[export.object_ids[0]]
+    flattened_shapes = []
+    for object_id in export.object_ids:
+        flattened_shapes.extend(objects[object_id].vals())
+    compound = cq.Compound.makeCompound(flattened_shapes)
+    return cq.Workplane("XY").newObject([compound])

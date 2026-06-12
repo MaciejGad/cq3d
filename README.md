@@ -77,6 +77,22 @@ The web editor provides:
 - Three.js STL preview rendered from backend-generated STL
 - download buttons for `.cq3d`, `.stl`, and `.step`
 
+## Extended Geometry Features
+
+The DSL now also supports:
+
+- `rounded_box`
+- `rounded_bar`
+- `cone`
+- `slot`
+- `copy`
+- `chamfer`
+- object-specific export blocks
+
+Extended syntax, validation rules, limitations, and examples are documented in:
+
+- [`docs/extended_geometry_features.md`](/Users/bazyl/Code/Essa3d/docs/extended_geometry_features.md)
+
 ## Example
 
 [`examples/display_steps.cq3d`](/Users/bazyl/Code/Essa3d/examples/display_steps.cq3d) builds a two-step display model with an expected bounding box of about:

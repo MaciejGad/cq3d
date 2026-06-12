@@ -6,21 +6,29 @@ from pathlib import Path
 
 from cq3d.ast_nodes import (
     BoxCommand,
+    ChamferCommand,
     CombineCommand,
     CombineOperation,
+    ConeCommand,
+    CopyByOperation,
+    CopyCommand,
+    CopyRotateOperation,
     CylinderCommand,
     ExportCommand,
     Expression,
     FilletCommand,
     ModelDocument,
     MoveCommand,
+    RoundedBoxCommand,
+    RoundedBarCommand,
     RotateCommand,
+    SlotCommand,
     VariableAssignment,
 )
 from cq3d.errors import ParseError
 from cq3d.expressions import VALID_NAME_RE, validate_identifier
 
-BLOCK_KEYWORDS = {"box", "cylinder", "combine", "move", "rotate", "fillet"}
+BLOCK_KEYWORDS = {"box", "rounded_box", "rounded_bar", "cylinder", "cone", "slot", "combine", "move", "rotate", "copy", "fillet", "chamfer"}
 RESERVED_WORDS = BLOCK_KEYWORDS | {
     "model",
     "unit",
@@ -31,7 +39,11 @@ RESERVED_WORDS = BLOCK_KEYWORDS | {
     "size",
     "at",
     "radius",
+    "radius1",
+    "radius2",
     "diameter",
+    "diameter1",
+    "diameter2",
     "height",
     "axis",
     "by",
@@ -40,6 +52,11 @@ RESERVED_WORDS = BLOCK_KEYWORDS | {
     "origin",
     "safe",
     "center",
+    "distance",
+    "clearance",
+    "from",
+    "object",
+    "objects",
 }
 
 
@@ -80,8 +97,8 @@ def parse_document(text: str, source_path: str | Path | None = None) -> ModelDoc
             continue
 
         if stripped.startswith("export "):
-            doc.exports.append(_parse_export(line))
-            index += 1
+            export_command, index = _parse_export(lines, index)
+            doc.exports.append(export_command)
             continue
 
         if "=" in stripped:
@@ -125,7 +142,8 @@ def _parse_assignment(line: SourceLine) -> VariableAssignment:
     )
 
 
-def _parse_export(line: SourceLine) -> ExportCommand:
+def _parse_export(lines: list[SourceLine], start_index: int):
+    line = lines[start_index]
     try:
         parts = shlex.split(line.text)
     except ValueError as exc:
@@ -136,16 +154,51 @@ def _parse_export(line: SourceLine) -> ExportCommand:
     _, export_format, *path_parts = parts
     if export_format not in {"stl", "step"}:
         raise ParseError(f"unsupported export format {export_format!r}", line.number)
-    return ExportCommand(export_format, path_parts[0] if path_parts else None, line.number)
+
+    if start_index + 1 >= len(lines) or lines[start_index + 1].text.split()[0] not in {"object", "objects"}:
+        return ExportCommand(export_format, path_parts[0] if path_parts else None, line.number), start_index + 1
+
+    index = start_index + 1
+    object_ids: list[str] | None = None
+    while index < len(lines):
+        current = lines[index]
+        if current.text == "end":
+            if object_ids is None:
+                raise ParseError("export block requires an object or objects field", line.number)
+            return ExportCommand(export_format, path_parts[0] if path_parts else None, line.number, object_ids), index + 1
+
+        key, _, rest = current.text.partition(" ")
+        refs = rest.split()
+        if key == "object":
+            if len(refs) != 1:
+                raise ParseError("object requires exactly one object id", current.number)
+            object_ids = refs
+        elif key == "objects":
+            if not refs:
+                raise ParseError("objects requires at least one object id", current.number)
+            object_ids = refs
+        else:
+            raise ParseError(f"unknown field {key!r} in export block", current.number)
+        index += 1
+
+    raise ParseError("missing 'end' for 'export' block", line.number)
 
 
 def _parse_block(lines: list[SourceLine], start_index: int):
     header = lines[start_index]
     header_parts = header.text.split()
-    if len(header_parts) != 2:
-        raise ParseError("block syntax is '<command> <id>'", header.number)
-    keyword, object_id = header_parts
-    validate_identifier(object_id, line=header.number)
+    keyword = header_parts[0]
+    if keyword == "copy":
+        if len(header_parts) != 4 or header_parts[2] != "from":
+            raise ParseError("copy syntax is 'copy <new_id> from <source_id>'", header.number)
+        _, object_id, _, source_id = header_parts
+        validate_identifier(object_id, line=header.number)
+        validate_identifier(source_id, line=header.number)
+    else:
+        if len(header_parts) != 2:
+            raise ParseError("block syntax is '<command> <id>'", header.number)
+        _, object_id = header_parts
+        validate_identifier(object_id, line=header.number)
 
     body: list[SourceLine] = []
     index = start_index + 1
@@ -153,7 +206,7 @@ def _parse_block(lines: list[SourceLine], start_index: int):
         line = lines[index]
         if line.text == "end":
             break
-        if line.text.split()[0] in BLOCK_KEYWORDS:
+        if line.text.split()[0] in BLOCK_KEYWORDS and not line.text.startswith("rotate around "):
             raise ParseError("nested blocks are not supported", line.number)
         body.append(line)
         index += 1
@@ -162,14 +215,26 @@ def _parse_block(lines: list[SourceLine], start_index: int):
 
     if keyword == "box":
         command = _parse_box(header, object_id, body)
+    elif keyword == "rounded_box":
+        command = _parse_rounded_box(header, object_id, body)
+    elif keyword == "rounded_bar":
+        command = _parse_rounded_bar(header, object_id, body)
     elif keyword == "cylinder":
         command = _parse_cylinder(header, object_id, body)
+    elif keyword == "cone":
+        command = _parse_cone(header, object_id, body)
+    elif keyword == "slot":
+        command = _parse_slot(header, object_id, body)
     elif keyword == "combine":
         command = _parse_combine(header, object_id, body)
     elif keyword == "move":
         command = _parse_move(header, object_id, body)
     elif keyword == "rotate":
         command = _parse_rotate(header, object_id, body)
+    elif keyword == "copy":
+        command = _parse_copy(header, object_id, source_id, body)
+    elif keyword == "chamfer":
+        command = _parse_chamfer(header, object_id, body)
     else:
         command = _parse_fillet(header, object_id, body)
 
@@ -199,6 +264,79 @@ def _parse_box(header: SourceLine, object_id: str, body: list[SourceLine]) -> Bo
         raise ParseError("box block requires a size field", header.number)
 
     return BoxCommand(id=object_id, size=size, at=at, center=center, line=header.number)
+
+
+def _parse_rounded_box(header: SourceLine, object_id: str, body: list[SourceLine]) -> RoundedBoxCommand:
+    size = None
+    radius = None
+    at = None
+    center = False
+
+    for line in body:
+        key, _, rest = line.text.partition(" ")
+        if key == "size":
+            size = _parse_expression_tuple(rest, 3, line.number, key)
+        elif key == "radius":
+            radius = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "at":
+            at = _parse_expression_tuple(rest, 3, line.number, key)
+        elif key == "center":
+            value = rest.strip()
+            if value not in {"true", "false"}:
+                raise ParseError("center must be true or false", line.number)
+            center = value == "true"
+        else:
+            raise ParseError(f"unknown field {key!r} in rounded_box block", line.number)
+
+    if size is None:
+        raise ParseError("rounded_box block requires a size field", header.number)
+    if radius is None:
+        raise ParseError("rounded_box block requires a radius field", header.number)
+
+    return RoundedBoxCommand(id=object_id, size=size, radius=radius, at=at, center=center, line=header.number)
+
+
+def _parse_rounded_bar(header: SourceLine, object_id: str, body: list[SourceLine]) -> RoundedBarCommand:
+    length = None
+    width = None
+    height = None
+    radius = None
+    at = None
+    axis = "x"
+
+    for line in body:
+        key, _, rest = line.text.partition(" ")
+        if key == "length":
+            length = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "width":
+            width = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "height":
+            height = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "radius":
+            radius = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "at":
+            at = _parse_expression_tuple(rest, 3, line.number, key)
+        elif key == "axis":
+            axis = rest.strip()
+            if axis not in {"x", "y", "z"}:
+                raise ParseError("axis must be x, y, or z", line.number)
+        else:
+            raise ParseError(f"unknown field {key!r} in rounded_bar block", line.number)
+
+    missing = [name for name, value in {"length": length, "width": width, "height": height, "radius": radius}.items() if value is None]
+    if missing:
+        raise ParseError(f"rounded_bar block requires {', '.join(missing)}", header.number)
+
+    return RoundedBarCommand(
+        id=object_id,
+        length=length,
+        width=width,
+        height=height,
+        radius=radius,
+        at=at,
+        axis=axis,
+        line=header.number,
+    )
 
 
 def _parse_cylinder(header: SourceLine, object_id: str, body: list[SourceLine]) -> CylinderCommand:
@@ -237,6 +375,80 @@ def _parse_cylinder(header: SourceLine, object_id: str, body: list[SourceLine]) 
         axis=axis,
         line=header.number,
     )
+
+
+def _parse_cone(header: SourceLine, object_id: str, body: list[SourceLine]) -> ConeCommand:
+    radius1 = None
+    radius2 = None
+    diameter1 = None
+    diameter2 = None
+    height = None
+    at = None
+    axis = "z"
+
+    for line in body:
+        key, _, rest = line.text.partition(" ")
+        if key == "radius1":
+            radius1 = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "radius2":
+            radius2 = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "diameter1":
+            diameter1 = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "diameter2":
+            diameter2 = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "height":
+            height = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "at":
+            at = _parse_expression_tuple(rest, 3, line.number, key)
+        elif key == "axis":
+            axis = rest.strip()
+            if axis not in {"x", "y", "z"}:
+                raise ParseError("axis must be x, y, or z", line.number)
+        else:
+            raise ParseError(f"unknown field {key!r} in cone block", line.number)
+
+    if height is None:
+        raise ParseError("cone block requires a height field", header.number)
+
+    return ConeCommand(
+        id=object_id,
+        radius1=radius1,
+        radius2=radius2,
+        diameter1=diameter1,
+        diameter2=diameter2,
+        height=height,
+        at=at,
+        axis=axis,
+        line=header.number,
+    )
+
+
+def _parse_slot(header: SourceLine, object_id: str, body: list[SourceLine]) -> SlotCommand:
+    size = None
+    clearance = None
+    at = None
+    center = False
+
+    for line in body:
+        key, _, rest = line.text.partition(" ")
+        if key == "size":
+            size = _parse_expression_tuple(rest, 3, line.number, key)
+        elif key == "clearance":
+            clearance = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "at":
+            at = _parse_expression_tuple(rest, 3, line.number, key)
+        elif key == "center":
+            value = rest.strip()
+            if value not in {"true", "false"}:
+                raise ParseError("center must be true or false", line.number)
+            center = value == "true"
+        else:
+            raise ParseError(f"unknown field {key!r} in slot block", line.number)
+
+    if size is None:
+        raise ParseError("slot block requires a size field", header.number)
+
+    return SlotCommand(id=object_id, size=size, clearance=clearance, at=at, center=center, line=header.number)
 
 
 def _parse_combine(header: SourceLine, object_id: str, body: list[SourceLine]) -> CombineCommand:
@@ -299,6 +511,47 @@ def _parse_rotate(header: SourceLine, object_id: str, body: list[SourceLine]) ->
     return RotateCommand(id=object_id, axis=axis, angle=angle, origin=origin, line=header.number)
 
 
+def _parse_copy(header: SourceLine, object_id: str, source_id: str, body: list[SourceLine]) -> CopyCommand:
+    operations = []
+    for line in body:
+        key, _, rest = line.text.partition(" ")
+        if key == "by":
+            operations.append(CopyByOperation(by=_parse_expression_tuple(rest, 3, line.number, key), line=line.number))
+        elif key == "rotate":
+            parts = rest.split()
+            if len(parts) < 4 or parts[0] != "around" or parts[2] != "angle":
+                raise ParseError("copy rotate syntax is 'rotate around <axis> angle <degrees> [origin x y z]'", line.number)
+            axis = parts[1]
+            if axis not in {"x", "y", "z"}:
+                raise ParseError("rotate axis must be x, y, or z", line.number)
+            if "origin" in parts:
+                origin_index = parts.index("origin")
+                angle_text = " ".join(parts[3:origin_index])
+                origin = _parse_expression_tuple(" ".join(parts[origin_index + 1:]), 3, line.number, "origin")
+            else:
+                angle_text = " ".join(parts[3:])
+                origin = (
+                    Expression("0", line.number),
+                    Expression("0", line.number),
+                    Expression("0", line.number),
+                )
+            operations.append(
+                CopyRotateOperation(
+                    axis=axis,
+                    angle=Expression(angle_text, line.number),
+                    origin=origin,
+                    line=line.number,
+                )
+            )
+        else:
+            raise ParseError(f"unknown field {key!r} in copy block", line.number)
+
+    if not operations:
+        raise ParseError("copy block requires at least one operation", header.number)
+
+    return CopyCommand(id=object_id, source_id=source_id, operations=operations, line=header.number)
+
+
 def _parse_fillet(header: SourceLine, object_id: str, body: list[SourceLine]) -> FilletCommand:
     radius = None
     safe = True
@@ -321,6 +574,30 @@ def _parse_fillet(header: SourceLine, object_id: str, body: list[SourceLine]) ->
     if radius is None:
         raise ParseError("fillet block requires a radius field", header.number)
     return FilletCommand(id=object_id, radius=radius, safe=safe, line=header.number)
+
+
+def _parse_chamfer(header: SourceLine, object_id: str, body: list[SourceLine]) -> ChamferCommand:
+    distance = None
+    safe = True
+
+    for line in body:
+        key, _, rest = line.text.partition(" ")
+        if key == "distance":
+            distance = _parse_expression_tuple(rest, 1, line.number, key)[0]
+        elif key == "safe":
+            value = rest.strip()
+            if value not in {"true", "false"}:
+                raise ParseError("safe must be true or false", line.number)
+            safe = value == "true"
+        elif key == "edges":
+            if rest.strip() != "all":
+                raise ParseError("only 'edges all' is supported in the MVP", line.number)
+        else:
+            raise ParseError(f"unknown field {key!r} in chamfer block", line.number)
+
+    if distance is None:
+        raise ParseError("chamfer block requires a distance field", header.number)
+    return ChamferCommand(id=object_id, distance=distance, safe=safe, line=header.number)
 
 
 def _parse_expression_tuple(

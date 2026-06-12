@@ -338,3 +338,205 @@ export step "nested/demo.step"
     for path in written:
         assert path.exists()
         assert path.stat().st_size > 0
+
+
+def test_builds_rounded_box_and_cone(tmp_path):
+    source = """
+model demo
+unit mm
+
+rounded_box arm
+  size 40 12 8
+  radius 2
+  at 0 0 0
+end
+
+cone tip
+  diameter1 10
+  diameter2 4
+  height 20
+  at 5 6 8
+end
+
+combine body
+  union arm tip
+end
+
+export step "demo.step"
+"""
+    document = parse_document(source, source_path=tmp_path / "demo.cq3d")
+    result = build_document(document)
+    written = export_document(document, result.final_object)
+    assert result.final_object_id == "body"
+    assert any(path.suffix == ".step" for path in written)
+
+
+def test_chamfer_safe_failure_keeps_object():
+    source = """
+model demo
+unit mm
+
+box body
+  size 10 10 10
+end
+
+chamfer body
+  distance 100
+  safe true
+end
+"""
+    result = build_document(parse_document(source))
+    assert _bbox(result.final_object) == pytest.approx((10.0, 10.0, 10.0))
+
+
+def test_object_specific_export_writes_selected_objects(tmp_path):
+    source = """
+model demo
+unit mm
+
+box arm
+  size 20 10 5
+end
+
+box shaft
+  size 5 5 30
+  at 30 0 0
+end
+
+export stl "arm.stl"
+  object arm
+end
+
+export step "assembly.step"
+  objects arm shaft
+end
+    """
+    document = parse_document(source, source_path=tmp_path / "demo.cq3d")
+    result = build_document(document)
+    written = export_document(document, result.final_object, objects=result.objects)
+    assert {path.name for path in written} == {"arm.stl", "assembly.step"}
+    for path in written:
+        assert path.exists()
+        assert path.stat().st_size > 0
+
+
+def test_builds_copy_slot_and_rounded_bar():
+    source = """
+model spindle
+unit mm
+
+rounded_bar arm_a
+  length 140
+  width 22
+  height 10
+  radius 4
+  axis x
+  at -70 -11 20
+end
+
+copy arm_b from arm_a
+  rotate around z angle 90 origin 0 0 0
+end
+
+slot arm_slot
+  size 24 12 8
+  clearance 0.3
+  at -12 -6 21
+end
+
+combine body
+  union arm_a arm_b
+  cut body arm_slot
+end
+"""
+    result = build_document(parse_document(source))
+    assert result.final_object_id == "body"
+    assert "arm_a" in result.objects
+    assert "arm_b" in result.objects
+    assert "arm_slot" in result.objects
+
+
+def test_copy_does_not_mutate_source_object():
+    source = """
+model demo
+unit mm
+
+box arm_a
+  size 20 10 5
+  at 0 0 0
+end
+
+copy arm_b from arm_a
+  by 30 0 0
+end
+"""
+    result = build_document(parse_document(source))
+    assert get_bounding_box(result.objects["arm_a"]) == pytest.approx(
+        {
+            "xmin": 0.0,
+            "xmax": 20.0,
+            "xlen": 20.0,
+            "ymin": 0.0,
+            "ymax": 10.0,
+            "ylen": 10.0,
+            "zmin": 0.0,
+            "zmax": 5.0,
+            "zlen": 5.0,
+        }
+    )
+    assert get_bounding_box(result.objects["arm_b"]) == pytest.approx(
+        {
+            "xmin": 30.0,
+            "xmax": 50.0,
+            "xlen": 20.0,
+            "ymin": 0.0,
+            "ymax": 10.0,
+            "ylen": 10.0,
+            "zmin": 0.0,
+            "zmax": 5.0,
+            "zlen": 5.0,
+        }
+    )
+
+
+def test_combine_supports_sequential_self_referencing_cuts():
+    source = """
+model demo
+unit mm
+
+box arm_blank
+  size 40 12 8
+  at -20 -6 0
+end
+
+slot top_slot
+  size 10 4 4
+  at -5 -2 4
+end
+
+cylinder center_hole
+  radius 3
+  height 10
+  at 0 0 -1
+end
+
+combine arm
+  cut arm_blank top_slot
+  cut arm center_hole
+end
+"""
+    result = build_document(parse_document(source))
+    assert get_bounding_box(result.objects["arm"]) == pytest.approx(
+        {
+            "xmin": -20.0,
+            "xmax": 20.0,
+            "xlen": 40.0,
+            "ymin": -6.0,
+            "ymax": 6.0,
+            "ylen": 12.0,
+            "zmin": 0.0,
+            "zmax": 8.0,
+            "zlen": 8.0,
+        },
+        abs=1e-6,
+    )

@@ -4,12 +4,18 @@ from pathlib import Path
 
 from cq3d.ast_nodes import (
     BoxCommand,
+    ChamferCommand,
     CombineCommand,
+    ConeCommand,
+    CopyCommand,
     CylinderCommand,
     ExportCommand,
     FilletCommand,
     MoveCommand,
+    RoundedBoxCommand,
+    RoundedBarCommand,
     RotateCommand,
+    SlotCommand,
     VariableAssignment,
 )
 from cq3d.errors import ParseError
@@ -179,3 +185,71 @@ export step "fixture.step"
 def test_parser_reports_targeted_errors(source, message):
     with pytest.raises(ParseError, match=message):
         parse_document(source)
+
+
+def test_parses_rounded_box_cone_chamfer_and_export_block():
+    source = """
+model spindle_bits
+unit mm
+
+rounded_box arm
+  size 40 12 8
+  radius 2
+  at 0 0 0
+end
+
+cone tip
+  diameter1 10
+  diameter2 4
+  height 20
+  at 0 0 8
+end
+
+chamfer arm
+  distance 1
+  safe false
+  edges all
+end
+
+export stl "arm.stl"
+  object arm
+end
+"""
+    document = parse_document(source)
+    assert isinstance(document.commands[0], RoundedBoxCommand)
+    assert isinstance(document.commands[1], ConeCommand)
+    assert isinstance(document.commands[2], ChamferCommand)
+    assert document.exports[0].format == "stl"
+    assert document.exports[0].path == "arm.stl"
+    assert document.exports[0].object_ids == ["arm"]
+
+
+def test_parses_copy_slot_and_rounded_bar():
+    source = """
+model spindle
+unit mm
+
+rounded_bar arm_a
+  length 140
+  width 22
+  height 10
+  radius 4
+  axis x
+  at -70 -11 20
+end
+
+copy arm_b from arm_a
+  rotate around z angle 90 origin 0 0 0
+end
+
+slot arm_slot
+  size 24 12 8
+  clearance 0.3
+  at -12 -6 4
+end
+"""
+    document = parse_document(source)
+    assert isinstance(document.commands[0], RoundedBarCommand)
+    assert isinstance(document.commands[1], CopyCommand)
+    assert document.commands[1].source_id == "arm_a"
+    assert isinstance(document.commands[2], SlotCommand)

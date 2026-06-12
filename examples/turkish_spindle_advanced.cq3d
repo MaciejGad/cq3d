@@ -1,0 +1,108 @@
+model turkish_spindle_advanced
+unit mm
+
+arm_length = 140
+arm_width = 24
+arm_height = 8
+arm_radius = 3
+arm_z = 18
+slot_length = 26
+slot_width = 6
+slot_depth = arm_height / 2
+shaft_radius = 4
+shaft_clearance = 0.35
+
+rounded_bar arm_a_blank
+  length arm_length
+  width arm_width
+  height arm_height
+  radius arm_radius
+  axis x
+  at -70 -12 arm_z
+end
+
+slot arm_a_slot
+  size slot_length slot_width slot_depth
+  at -13 -3 (arm_z + slot_depth)
+end
+
+cylinder arm_center_hole
+  radius shaft_radius + shaft_clearance
+  height arm_height + 2
+  at 0 0 (arm_z - 1)
+end
+
+combine arm_a
+  cut arm_a_blank arm_a_slot
+  cut arm_a arm_center_hole
+end
+
+copy arm_b_blank from arm_a_blank
+  rotate around z angle 90 origin 0 0 0
+end
+
+slot arm_b_slot
+  size slot_width slot_length slot_depth
+  at -3 -13 arm_z
+end
+
+combine arm_b
+  cut arm_b_blank arm_b_slot
+  cut arm_b arm_center_hole
+end
+
+cylinder shaft_foot
+  radius 7
+  height 4
+  at 0 0 0
+end
+
+cone shaft_button
+  diameter1 20
+  diameter2 12
+  height 6
+  at 0 0 4
+end
+
+cylinder shaft_hub
+  radius 8
+  height 4
+  at 0 0 10
+end
+
+cylinder shaft_core
+  radius shaft_radius
+  height 136
+  at 0 0 14
+end
+
+cone shaft_tip
+  diameter1 8
+  diameter2 2
+  height 24
+  at 0 0 150
+end
+
+combine shaft
+  union shaft_foot shaft_button shaft_hub shaft_core shaft_tip
+end
+
+combine body
+  union shaft arm_a arm_b
+end
+
+export stl "turkish_spindle_parts/shaft.stl"
+  object shaft
+end
+
+export stl "turkish_spindle_parts/arm_a.stl"
+  object arm_a
+end
+
+export stl "turkish_spindle_parts/arm_b.stl"
+  object arm_b
+end
+
+export step "turkish_spindle_parts/turkish_spindle_assembly.step"
+  objects shaft arm_a arm_b
+end
