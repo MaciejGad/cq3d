@@ -1,0 +1,96 @@
+model sample_space_rover_toy
+unit mm
+
+body_width = 90
+body_depth = 55
+body_height = 18
+wheel_diameter = 18
+wheel_thickness = 9
+wheel_radius = wheel_diameter / 2
+wheel_y_offset = -wheel_thickness / 2
+wheel_z = wheel_radius
+front_wheel_x = 20
+rear_wheel_x = 70
+left_wheel_y = -wheel_thickness / 2
+right_wheel_y = body_depth + wheel_thickness / 2
+cabin_width = 38
+cabin_depth = 32
+cabin_height = 22
+cabin_x = (body_width - cabin_width) / 2
+cabin_y = (body_depth - cabin_depth) / 2
+antenna_radius = 2
+antenna_height = 24
+antenna_x = body_width / 2
+antenna_y = body_depth / 2
+
+box rover_base
+  size body_width body_depth body_height
+  at 0 0 wheel_diameter
+end
+
+box cabin
+  size cabin_width cabin_depth cabin_height
+  at cabin_x cabin_y wheel_diameter + body_height
+end
+
+box front_bumper
+  size 8 body_depth 10
+  at -8 0 wheel_diameter + 4
+end
+
+box rear_bumper
+  size 8 body_depth 10
+  at body_width 0 wheel_diameter + 4
+end
+
+cylinder left_front_wheel
+  diameter wheel_diameter
+  height wheel_thickness
+  axis y
+  at front_wheel_x left_wheel_y wheel_z
+end
+
+cylinder right_front_wheel
+  diameter wheel_diameter
+  height wheel_thickness
+  axis y
+  at front_wheel_x body_depth wheel_z
+end
+
+cylinder left_rear_wheel
+  diameter wheel_diameter
+  height wheel_thickness
+  axis y
+  at rear_wheel_x left_wheel_y wheel_z
+end
+
+cylinder right_rear_wheel
+  diameter wheel_diameter
+  height wheel_thickness
+  axis y
+  at rear_wheel_x body_depth wheel_z
+end
+
+cylinder antenna
+  radius antenna_radius
+  height antenna_height
+  at antenna_x antenna_y wheel_diameter + body_height + cabin_height
+end
+
+cylinder antenna_ball
+  radius 5
+  height 5
+  at antenna_x antenna_y wheel_diameter + body_height + cabin_height + antenna_height
+end
+
+combine body
+  union rover_base cabin front_bumper rear_bumper left_front_wheel right_front_wheel left_rear_wheel right_rear_wheel antenna antenna_ball
+end
+
+fillet body
+  radius 2
+  safe true
+end
+
+export stl "sample_space_rover_toy.stl"
+export step "sample_space_rover_toy.step"

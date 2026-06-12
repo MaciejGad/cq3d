@@ -1,0 +1,80 @@
+model wall_hanging_shelf
+unit mm
+
+# Overall shelf dimensions
+width = 300
+depth = 120
+back_height = 90
+thickness = 12
+side_height = 70
+lip_height = 22
+
+# Mounting hole dimensions
+hole_diameter = 6
+hole_depth = thickness + 4
+hole_z = 58
+hole_margin_x = 55
+hole_left_x = hole_margin_x
+hole_right_x = width - hole_margin_x
+hole_y = -2
+
+# Main horizontal shelf board
+box shelf_base
+  size width depth thickness
+  at 0 0 0
+end
+
+# Vertical back plate for wall mounting
+box back_plate
+  size width thickness back_height
+  at 0 0 0
+end
+
+# Left and right triangular-like side supports approximated with rectangular brackets
+box left_side_support
+  size thickness depth side_height
+  at 0 0 0
+end
+
+box right_side_support
+  size thickness depth side_height
+  at width - thickness 0 0
+end
+
+# Small front lip to stop objects sliding off
+box front_lip
+  size width thickness lip_height
+  at 0 depth - thickness thickness
+end
+
+# Cylinders used to cut screw holes through the back plate
+cylinder left_mount_hole
+  diameter hole_diameter
+  height hole_depth
+  axis y
+  at hole_left_x hole_y hole_z
+end
+
+cylinder right_mount_hole
+  diameter hole_diameter
+  height hole_depth
+  axis y
+  at hole_right_x hole_y hole_z
+end
+
+combine shelf_solid
+  union shelf_base back_plate left_side_support right_side_support front_lip
+end
+
+combine body
+  cut shelf_solid left_mount_hole right_mount_hole
+end
+
+fillet body
+  radius 2
+  safe true
+  edges all
+end
+
+export stl "wall_hanging_shelf.stl"
+export step "wall_hanging_shelf.step"

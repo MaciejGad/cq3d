@@ -1,0 +1,118 @@
+model flower_pot
+unit mm
+
+outer_width = 120
+outer_depth = 120
+outer_height = 95
+wall_thickness = 6
+bottom_thickness = 7
+inner_width = outer_width - wall_thickness * 2
+inner_depth = outer_depth - wall_thickness * 2
+inner_height = outer_height - bottom_thickness
+rim_height = 8
+rim_overhang = 4
+hole_diameter = 8
+hole_depth = bottom_thickness + 2
+foot_height = 5
+foot_size = 18
+
+box outer_pot
+  size outer_width outer_depth outer_height
+  at 0 0 0
+end
+
+box inner_cutout
+  size inner_width inner_depth inner_height
+  at wall_thickness wall_thickness bottom_thickness
+end
+
+cylinder drain_center
+  diameter hole_diameter
+  height hole_depth
+  at outer_width / 2 outer_depth / 2 -1
+  axis z
+end
+
+cylinder drain_front
+  diameter hole_diameter
+  height hole_depth
+  at outer_width / 2 38 -1
+  axis z
+end
+
+cylinder drain_back
+  diameter hole_diameter
+  height hole_depth
+  at outer_width / 2 82 -1
+  axis z
+end
+
+cylinder drain_left
+  diameter hole_diameter
+  height hole_depth
+  at 38 outer_depth / 2 -1
+  axis z
+end
+
+cylinder drain_right
+  diameter hole_diameter
+  height hole_depth
+  at 82 outer_depth / 2 -1
+  axis z
+end
+
+combine pot_shell
+  cut outer_pot inner_cutout drain_center drain_front drain_back drain_left drain_right
+end
+
+box rim_front
+  size outer_width + rim_overhang * 2 wall_thickness + rim_overhang rim_height
+  at -rim_overhang -rim_overhang outer_height - rim_height
+end
+
+box rim_back
+  size outer_width + rim_overhang * 2 wall_thickness + rim_overhang rim_height
+  at -rim_overhang outer_depth - wall_thickness outer_height - rim_height
+end
+
+box rim_left
+  size wall_thickness + rim_overhang outer_depth + rim_overhang * 2 rim_height
+  at -rim_overhang -rim_overhang outer_height - rim_height
+end
+
+box rim_right
+  size wall_thickness + rim_overhang outer_depth + rim_overhang * 2 rim_height
+  at outer_width - wall_thickness -rim_overhang outer_height - rim_height
+end
+
+box foot_front_left
+  size foot_size foot_size foot_height
+  at 12 12 -foot_height
+end
+
+box foot_front_right
+  size foot_size foot_size foot_height
+  at outer_width - foot_size - 12 12 -foot_height
+end
+
+box foot_back_left
+  size foot_size foot_size foot_height
+  at 12 outer_depth - foot_size - 12 -foot_height
+end
+
+box foot_back_right
+  size foot_size foot_size foot_height
+  at outer_width - foot_size - 12 outer_depth - foot_size - 12 -foot_height
+end
+
+combine body
+  union pot_shell rim_front rim_back rim_left rim_right foot_front_left foot_front_right foot_back_left foot_back_right
+end
+
+fillet body
+  radius 2
+  safe true
+end
+
+export stl "flower_pot.stl"
+export step "flower_pot.step"
